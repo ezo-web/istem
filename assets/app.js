@@ -191,13 +191,11 @@ async function init() {
     if (fromFirestore !== null) {
       [announcements, resources] = fromFirestore;
       firebaseReady = true;
+    } else {
+      console.error('Failed to load announcements and resources from Firestore. Check Firebase configuration and Firestore rules.');
     }
-  }
-
-  // only fallback to local JSON if Firestore failed to initialize
-  if (!firebaseReady) {
-    announcements = await loadJSON('data/announcements.json');
-    resources = await loadJSON('data/resources.json');
+  } else {
+    console.error('Firebase not initialized. Check your firebase-config.js.');
   }
 
   renderAnnouncements(announcements);
