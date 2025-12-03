@@ -76,4 +76,42 @@ Want me to:
 - Add protected write endpoints (simple Node backend) or integrate Sign-In with Firebase
 - Add deployment steps for hosting the site on Firebase Hosting
 
+
+Admin UI (UID + Password)
+---------------------------------
+I added an Admin UI that authenticates admins using a dedicated Firestore collection named `admins`. This allows you to use arbitrary UIDs (not emails).
+
+How it works
+- The admin login form asks for `UID` and `Password`.
+- The app looks up a document with ID = `UID` in the `admins` collection. That document must contain a `passwordHash` field (SHA-256 hex).
+- The site hashes the entered password client-side with SHA-256 and compares it to `passwordHash` in Firestore. If they match, the admin is signed in locally (session stored in `sessionStorage`).
+
+Creating admin accounts
+- Admins are provided by you (not creatable by site users). Add UID/password entries to `data/admins.json`. The file accepts objects with `uid` and either `password` (plaintext) or `passwordHash` (SHA-256 hex). Plaintext `password` entries are hashed by the site when it loads the file.
+- Example: `{ "uid": "alice", "password": "changeme" }` or `{ "uid": "bob", "passwordHash": "abc123...def456" }`.
+- The site loads this file once on startup; changes to `data/admins.json` require a page reload.
+
+Security notes & recommendations
+- Admin credentials are stored locally in `data/admins.json` and never sent to Firestore. Do not commit this file to a public repository or add it to `.gitignore` if you have sensitive credentials.
+- Plaintext passwords in `data/admins.json` are hashed client-side (SHA-256) when the page loads. Hashes are compared in the browser; passwords are never sent to the server.
+- Firestore only stores the public announcements and resources, and should use these rules to allow anyone to read but only authenticated users (via local session) to write:
+  ```
+  rules_version = '2';
+  service cloud.firestore {
+    match /databases/{database}/documents {
+      match /announcements/{document=**} {
+        allow read: if true;
+        allow write: if false;
+      }
+      match /resources/{document=**} {
+        allow read: if true;
+        allow write: if false;
+      }
+    }
+  }
+  ```
+- If you want server-controlled write permissions, you would need a backend API that validates admin status; for now, the site does not perform server-side checks.
+
+
+
 # istem

@@ -10,6 +10,7 @@
   <header class="topbar">
     <div class="brand">I-STEM Council</div>
     <div class="desc">Announcements & Resources</div>
+    <button id="adminBtn" class="admin-btn">Admin</button>
   </header>
 
   <main class="app">
@@ -58,6 +59,47 @@
       <a class="link" target="_blank" rel="noopener noreferrer">Open</a>
     </li>
   </template>
+
+  <!-- Admin panel -->
+  <div id="adminPanel" class="admin-panel" hidden>
+    <div class="admin-card">
+      <button id="closeAdmin" class="close-btn">×</button>
+      <h3>Admin Login</h3>
+      <form id="loginForm" class="admin-form">
+        <label>UID<input id="loginUid" name="uid" required /></label>
+        <label>Password<input id="loginPassword" name="password" type="password" required /></label>
+          <div class="admin-actions">
+          <button type="submit" class="btn">Sign In</button>
+        </div>
+      </form>
+
+      <div id="adminControls" hidden>
+        <h4>Create Announcement</h4>
+        <form id="createAnnouncementForm" class="admin-form">
+          <input id="annTitle" placeholder="Title" required />
+          <input id="annDate" type="date" />
+          <textarea id="annBody" placeholder="Body" rows="3"></textarea>
+          <label><input id="annPinned" type="checkbox" /> Pinned</label>
+          <div class="admin-actions"><button class="btn" type="submit">Create</button></div>
+        </form>
+
+        <h4>Create Resource</h4>
+        <form id="createResourceForm" class="admin-form">
+          <input id="resTitle" placeholder="Title" required />
+          <input id="resType" placeholder="Type (e.g., Document)" />
+          <input id="resLink" placeholder="Link (https://...)" />
+          <textarea id="resDesc" placeholder="Description" rows="2"></textarea>
+          <div class="admin-actions"><button class="btn" type="submit">Create</button></div>
+        </form>
+
+        <div class="admin-actions">
+          <button id="signOutBtn" class="btn alt">Sign Out</button>
+        </div>
+      </div>
+
+      <div id="adminMsg" class="admin-msg"></div>
+    </div>
+  </div>
 
   <script type="module" src="assets/app.js"></script>
 </body>
