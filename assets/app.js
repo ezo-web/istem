@@ -19,6 +19,7 @@ let firebaseApp = null;
 let db = null;
 let isAdminSignedIn = false;
 let currentAdminUID = null;
+let firebaseReady = false;
 
 async function loadJSON(path) {
   try {
@@ -87,7 +88,6 @@ async function initFirebase() {
     }
     firebaseApp = initializeApp(firebaseConfig);
     db = getFirestore(firebaseApp);
-    auth = getAuth(firebaseApp);
     return { app: firebaseApp, db, auth };
   } catch (err) {
     console.warn('Firebase not initialized:', err.message || err);
@@ -177,49 +177,67 @@ async function createResourceFirestore(obj) {
 }
 
 async function init() {
-  // initialize firebase if possible
-  const fb = await initFirebase();
-  let announcements = [];
-  let resources = [];
-  let firebaseReady = false;
-
-  // load local admins file (so getAdminDoc can use it as fallback)
+  // Start app immediately (no blocking on Firebase). Admins and local config
+  // are available right away; Firestore will be loaded in the background
+  // and the UI will update when it becomes available.
   await loadLocalAdmins();
 
-  if (fb && fb.db) {
-    const fromFirestore = await loadFromFirestore(fb.db);
-    if (fromFirestore !== null) {
-      [announcements, resources] = fromFirestore;
-      firebaseReady = true;
-    } else {
-      console.error('Failed to load announcements and resources from Firestore. Check Firebase configuration and Firestore rules.');
-    }
-  } else {
-    console.error('Firebase not initialized. Check your firebase-config.js.');
-  }
-
-  renderAnnouncements(announcements);
-  renderResources(resources);
-  setupSearch(announcements, resources);
+  // render empty lists initially
+  renderAnnouncements([]);
+  renderResources([]);
+  setupSearch([], []);
 
   setupAdminUI();
+
+  // Start background loader that will attempt to initialize Firestore
+  // and fetch data repeatedly until it succeeds.
+  startFirestoreLoader();
+}
+
+let _firestoreLoaderTimer = null;
+function startFirestoreLoader(intervalMs = 3000) {
+  // don't start multiple loaders
+  if (_firestoreLoaderTimer) return;
+
+  const attempt = async () => {
+    try {
+      const fb = await initFirebase();
+      if (fb && fb.db) {
+        db = fb.db;
+        const fromFirestore = await loadFromFirestore(db);
+        if (fromFirestore !== null) {
+          const [announcements, resources] = fromFirestore;
+          firebaseReady = true;
+          // render when available
+          renderAnnouncements(announcements);
+          renderResources(resources);
+          setupSearch(announcements, resources);
+          console.info('Firestore data loaded');
+          clearInterval(_firestoreLoaderTimer);
+          _firestoreLoaderTimer = null;
+        } else {
+          console.warn('Firestore reachable but read failed; will retry');
+        }
+      }
+    } catch (err) {
+      console.debug('Firestore attempt failed, will retry', err);
+    }
+  };
+
+  // run immediately, then on interval
+  attempt();
+  _firestoreLoaderTimer = setInterval(attempt, intervalMs);
 }
 
 async function refreshData() {
-  // Refresh announcements and resources without re-initializing Firebase or admin UI
+  // Refresh announcements and resources from Firestore only. Do nothing
+  // if Firestore is not yet available; the background loader will pick up
+  // new data when it becomes available.
   if (!db) return;
-  
-  let announcements = [];
-  let resources = [];
-  
+
   const fromFirestore = await loadFromFirestore(db);
-  if (fromFirestore) {
-    [announcements, resources] = fromFirestore;
-  } else {
-    announcements = await loadJSON('data/announcements.json');
-    resources = await loadJSON('data/resources.json');
-  }
-  
+  if (!fromFirestore) return;
+  const [announcements, resources] = fromFirestore;
   renderAnnouncements(announcements);
   renderResources(resources);
   setupSearch(announcements, resources);
@@ -276,6 +294,7 @@ function setupAdminUI() {
   }
   
   // close panel when clicking outside (on the background overlay)
+  const adminPanel = document.getElementById('adminPanel');
   if (adminPanel) {
     adminPanel.addEventListener('click', (e) => {
       if (e.target === adminPanel) {
