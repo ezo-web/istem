@@ -63,3 +63,4 @@ body{
 .btn.alt{background:#f3f4f6;color:var(--muted);border:1px solid rgba(15,23,42,0.04)}
 .close-btn{position:absolute;right:10px;top:8px;background:transparent;border:none;font-size:24px;color:var(--muted);cursor:pointer;z-index:70;padding:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center}
 .admin-msg{margin-top:10px;color:var(--muted);font-size:13px}
+#adminSignedIn p{margin:0;padding:8px;background:#ecfdf5;border-radius:8px;color:#059669;border:1px solid #d1fae5}

@@ -181,20 +181,24 @@ async function init() {
   const fb = await initFirebase();
   let announcements = [];
   let resources = [];
+  let firebaseReady = false;
 
   // load local admins file (so getAdminDoc can use it as fallback)
   await loadLocalAdmins();
 
   if (fb && fb.db) {
     const fromFirestore = await loadFromFirestore(fb.db);
-    if (fromFirestore) {
+    if (fromFirestore !== null) {
       [announcements, resources] = fromFirestore;
+      firebaseReady = true;
     }
   }
 
-  // fallback to local JSON if needed
-  if (!announcements.length) announcements = await loadJSON('data/announcements.json');
-  if (!resources.length) resources = await loadJSON('data/resources.json');
+  // only fallback to local JSON if Firestore failed to initialize
+  if (!firebaseReady) {
+    announcements = await loadJSON('data/announcements.json');
+    resources = await loadJSON('data/resources.json');
+  }
 
   renderAnnouncements(announcements);
   renderResources(resources);
@@ -298,6 +302,9 @@ function setupAdminUI() {
         isAdminSignedIn = true;
         currentAdminUID = uid;
         sessionStorage.setItem('adminUID', uid);
+        document.getElementById('adminUID').textContent = uid;
+        document.getElementById('adminSignedOut').hidden = true;
+        document.getElementById('adminSignedIn').hidden = false;
         adminControls.hidden = false;
         loginForm.hidden = true;
         showAdminMessage('Signed in as '+uid);
@@ -319,6 +326,9 @@ function setupAdminUI() {
       if (a) {
         isAdminSignedIn = true; 
         currentAdminUID = saved; 
+        document.getElementById('adminUID').textContent = saved;
+        document.getElementById('adminSignedOut').hidden = true;
+        document.getElementById('adminSignedIn').hidden = false;
         if (adminControls) adminControls.hidden = false;
         if (loginForm) loginForm.hidden = true;
         showAdminMessage('Session restored for '+saved);
@@ -330,12 +340,21 @@ function setupAdminUI() {
   }
 
   signOutBtn?.addEventListener('click', async () => {
-    isAdminSignedIn = false; currentAdminUID = null; sessionStorage.removeItem('adminUID');
-    adminControls.hidden = true; loginForm.hidden = false; showAdminMessage('Signed out');
+    isAdminSignedIn = false; 
+    currentAdminUID = null; 
+    sessionStorage.removeItem('adminUID');
+    document.getElementById('adminSignedOut').hidden = false;
+    document.getElementById('adminSignedIn').hidden = true;
+    adminControls.hidden = true; 
+    loginForm.hidden = false;
+    document.getElementById('loginUid').value = '';
+    document.getElementById('loginPassword').value = '';
+    showAdminMessage('Signed out');
   });
 
   createAnnouncementForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!isAdminSignedIn) return showAdminMessage('You must be signed in as admin to create', true);
     if (!db) return showAdminMessage('Firestore not configured', true);
     const title = document.getElementById('annTitle').value.trim();
     const date = document.getElementById('annDate').value || new Date().toISOString().slice(0,10);
@@ -355,6 +374,7 @@ function setupAdminUI() {
 
   createResourceForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!isAdminSignedIn) return showAdminMessage('You must be signed in as admin to create', true);
     if (!db) return showAdminMessage('Firestore not configured', true);
     const title = document.getElementById('resTitle').value.trim();
     const type = document.getElementById('resType').value.trim();

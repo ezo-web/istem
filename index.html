@@ -73,13 +73,20 @@
     <div class="admin-card">
       <button id="closeAdmin" class="close-btn">×</button>
       <h3>Admin Login</h3>
-      <form id="loginForm" class="admin-form">
-        <label>UID<input id="loginUid" name="uid" required /></label>
-        <label>Password<input id="loginPassword" name="password" type="password" required /></label>
+      
+      <div id="adminSignedOut">
+        <form id="loginForm" class="admin-form">
+          <label>UID<input id="loginUid" name="uid" required /></label>
+          <label>Password<input id="loginPassword" name="password" type="password" required /></label>
           <div class="admin-actions">
-          <button type="submit" class="btn">Sign In</button>
-        </div>
-      </form>
+            <button type="submit" class="btn">Sign In</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="adminSignedIn" hidden>
+        <p style="margin: 0 0 12px 0; color: #059669; font-weight: 600;">✓ Signed in as <span id="adminUID"></span></p>
+      </div>
 
       <div id="adminControls" hidden>
         <h4>Create Announcement</h4>
