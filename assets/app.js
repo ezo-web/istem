@@ -203,6 +203,26 @@ async function init() {
   setupAdminUI();
 }
 
+async function refreshData() {
+  // Refresh announcements and resources without re-initializing Firebase or admin UI
+  if (!db) return;
+  
+  let announcements = [];
+  let resources = [];
+  
+  const fromFirestore = await loadFromFirestore(db);
+  if (fromFirestore) {
+    [announcements, resources] = fromFirestore;
+  } else {
+    announcements = await loadJSON('data/announcements.json');
+    resources = await loadJSON('data/resources.json');
+  }
+  
+  renderAnnouncements(announcements);
+  renderResources(resources);
+  setupSearch(announcements, resources);
+}
+
 window.addEventListener('DOMContentLoaded', init);
 
 /* Admin UI logic */
@@ -324,8 +344,8 @@ function setupAdminUI() {
     try {
       await createAnnouncementFirestore({ title, date, body, pinned });
       showAdminMessage('Announcement created');
-      // refresh lists
-      init();
+      // refresh lists (don't re-initialize everything)
+      await refreshData();
       createAnnouncementForm.reset();
     } catch (err) {
       console.error(err);
@@ -343,7 +363,8 @@ function setupAdminUI() {
     try {
       await createResourceFirestore({ title, type, link, description });
       showAdminMessage('Resource created');
-      init();
+      // refresh lists (don't re-initialize everything)
+      await refreshData();
       createResourceForm.reset();
     } catch (err) {
       console.error(err);
