@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>I-STEM Council — Dashboard</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">I-STEM Council</div>
+    <div class="desc">Announcements & Resources</div>
+  </header>
+
+  <main class="app">
+    <section class="col left">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Announcements</h2>
+          <input id="searchAnnouncements" class="search" placeholder="Search announcements..." />
+        </div>
+        <ul id="announcementsList" class="list"></ul>
+      </div>
+    </section>
+
+    <section class="col right">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Resources</h2>
+          <input id="searchResources" class="search" placeholder="Search resources..." />
+        </div>
+        <ul id="resourcesList" class="list"></ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <small>Built for the I-STEM Council — lightweight local dashboard</small>
+  </footer>
+
+  <template id="announcementTpl">
+    <li class="card announcement">
+      <div class="card-head">
+        <h3 class="title"></h3>
+        <time class="date"></time>
+      </div>
+      <p class="body"></p>
+    </li>
+  </template>
+
+  <template id="resourceTpl">
+    <li class="card resource">
+      <div class="card-head">
+        <h3 class="title"></h3>
+        <span class="type"></span>
+      </div>
+      <p class="body"></p>
+      <a class="link" target="_blank" rel="noopener noreferrer">Open</a>
+    </li>
+  </template>
+
+  <script type="module" src="assets/app.js"></script>
+</body>
+</html>
