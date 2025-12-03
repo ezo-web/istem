@@ -13,7 +13,6 @@ import {
   collection,
   getDocs,
   addDoc
-  , onSnapshot
 } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
 
 let firebaseApp = null;
@@ -130,40 +129,21 @@ async function loadFromFirestore(dbInstance) {
   }
 }
 
-function startRealtimeListeners(dbInstance) {
-  const annCol = collection(dbInstance, 'announcements');
-  const resCol = collection(dbInstance, 'resources');
-
-  // announcements listener
-  onSnapshot(annCol, snap => {
-    const announcements = snap.docs.map(d => {
-      const data = d.data();
-      return {
-        id: d.id,
-        title: data.title,
-        date: data.date ? (data.date.toDate ? data.date.toDate().toISOString() : data.date) : null,
-        body: data.body,
-        pinned: data.pinned || false
-      };
-    });
-    announcements.sort((a,b) => {
-      if ((b.pinned?1:0) - (a.pinned?1:0) !== 0) return (b.pinned?1:0) - (a.pinned?1:0);
-      return new Date(b.date) - new Date(a.date);
-    });
-    currentAnnouncements = announcements;
-    renderAnnouncements(currentAnnouncements);
-    setupSearch(currentAnnouncements, currentResources);
-    console.info('Announcements snapshot applied', announcements.length);
-  }, err => console.warn('Announcements snapshot error', err));
-
-  // resources listener
-  onSnapshot(resCol, snap => {
-    const resources = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    currentResources = resources;
-    renderResources(currentResources);
-    setupSearch(currentAnnouncements, currentResources);
-    console.info('Resources snapshot applied', resources.length);
-  }, err => console.warn('Resources snapshot error', err));
+async function fetchAndRenderData(dbInstance) {
+  try {
+    const fromFirestore = await loadFromFirestore(dbInstance);
+    if (fromFirestore !== null) {
+      const [announcements, resources] = fromFirestore;
+      currentAnnouncements = announcements;
+      currentResources = resources;
+      renderAnnouncements(currentAnnouncements);
+      renderResources(currentResources);
+      setupSearch(currentAnnouncements, currentResources);
+      console.info('Data fetched from Firestore', announcements.length, 'announcements,', resources.length, 'resources');
+    }
+  } catch (err) {
+    console.warn('Failed to fetch data from Firestore:', err);
+  }
 }
 
 async function hashPassword(password) {
@@ -228,25 +208,41 @@ async function init() {
 
   setupAdminUI();
 
+  // Track user opening the site as an interaction so first fetch happens
+  trackUserInteraction();
+
   // Start background loader that will attempt to initialize Firestore
-  // and fetch data repeatedly until it succeeds.
+  // and fetch data repeatedly until it succeeds. First attempt happens immediately.
   startFirestoreLoader();
 }
 
 let _firestoreLoaderTimer = null;
-function startFirestoreLoader(intervalMs = 3000) {
+let _lastUserInteraction = Date.now();
+
+function trackUserInteraction() {
+  _lastUserInteraction = Date.now();
+}
+
+function startFirestoreLoader(intervalMs = 5 * 60 * 1000, inactivityThreshold = 10 * 60 * 1000) {
   // don't start multiple loaders
   if (_firestoreLoaderTimer) return;
 
   const attempt = async () => {
+    // only fetch if user has interacted in last 10 minutes
+    const timeSinceInteraction = Date.now() - _lastUserInteraction;
+    if (timeSinceInteraction > inactivityThreshold) {
+      console.debug('Skipping Firestore fetch: user inactive for', Math.round(timeSinceInteraction / 1000), 'seconds');
+      return;
+    }
+
     try {
       const fb = await initFirebase();
       if (fb && fb.db) {
         db = fb.db;
-        // attach realtime listeners; onSnapshot will render the first snapshot
-        startRealtimeListeners(db);
+        // fetch and render data once
+        await fetchAndRenderData(db);
         firebaseReady = true;
-        console.info('Realtime Firestore listeners attached');
+        console.info('Firestore initialized and data fetched');
         clearInterval(_firestoreLoaderTimer);
         _firestoreLoaderTimer = null;
       }
@@ -255,23 +251,15 @@ function startFirestoreLoader(intervalMs = 3000) {
     }
   };
 
-  // run immediately, then on interval
+  // run immediately, then every 5 minutes
   attempt();
   _firestoreLoaderTimer = setInterval(attempt, intervalMs);
 }
 
 async function refreshData() {
-  // Refresh announcements and resources from Firestore only. Do nothing
-  // if Firestore is not yet available; the background loader will pick up
-  // new data when it becomes available.
+  // Manually refresh data if needed
   if (!db) return;
-
-  const fromFirestore = await loadFromFirestore(db);
-  if (!fromFirestore) return;
-  const [announcements, resources] = fromFirestore;
-  renderAnnouncements(announcements);
-  renderResources(resources);
-  setupSearch(announcements, resources);
+  await fetchAndRenderData(db);
 }
 
 window.addEventListener('DOMContentLoaded', init);
@@ -411,8 +399,8 @@ function setupAdminUI() {
     try {
       await createAnnouncementFirestore({ title, date, body, pinned });
       showAdminMessage('Announcement created');
-      // refresh lists (don't re-initialize everything)
-      await refreshData();
+      // fetch fresh data after publish
+      if (db) await fetchAndRenderData(db);
       createAnnouncementForm.reset();
     } catch (err) {
       console.error(err);
@@ -431,12 +419,16 @@ function setupAdminUI() {
     try {
       await createResourceFirestore({ title, type, link, description });
       showAdminMessage('Resource created');
-      // refresh lists (don't re-initialize everything)
-      await refreshData();
+      // fetch fresh data after publish
+      if (db) await fetchAndRenderData(db);
       createResourceForm.reset();
     } catch (err) {
       console.error(err);
       showAdminMessage('Create resource failed: '+(err.message||err), true);
     }
   });
+
+  // track user interaction to keep fetching active
+  document.addEventListener('click', trackUserInteraction);
+  document.addEventListener('keydown', trackUserInteraction);
 }
