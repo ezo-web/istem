@@ -13,6 +13,7 @@ import {
   collection,
   getDocs,
   addDoc
+  , onSnapshot
 } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
 
 let firebaseApp = null;
@@ -20,6 +21,8 @@ let db = null;
 let isAdminSignedIn = false;
 let currentAdminUID = null;
 let firebaseReady = false;
+let currentAnnouncements = [];
+let currentResources = [];
 
 async function loadJSON(path) {
   try {
@@ -127,6 +130,42 @@ async function loadFromFirestore(dbInstance) {
   }
 }
 
+function startRealtimeListeners(dbInstance) {
+  const annCol = collection(dbInstance, 'announcements');
+  const resCol = collection(dbInstance, 'resources');
+
+  // announcements listener
+  onSnapshot(annCol, snap => {
+    const announcements = snap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        title: data.title,
+        date: data.date ? (data.date.toDate ? data.date.toDate().toISOString() : data.date) : null,
+        body: data.body,
+        pinned: data.pinned || false
+      };
+    });
+    announcements.sort((a,b) => {
+      if ((b.pinned?1:0) - (a.pinned?1:0) !== 0) return (b.pinned?1:0) - (a.pinned?1:0);
+      return new Date(b.date) - new Date(a.date);
+    });
+    currentAnnouncements = announcements;
+    renderAnnouncements(currentAnnouncements);
+    setupSearch(currentAnnouncements, currentResources);
+    console.info('Announcements snapshot applied', announcements.length);
+  }, err => console.warn('Announcements snapshot error', err));
+
+  // resources listener
+  onSnapshot(resCol, snap => {
+    const resources = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    currentResources = resources;
+    renderResources(currentResources);
+    setupSearch(currentAnnouncements, currentResources);
+    console.info('Resources snapshot applied', resources.length);
+  }, err => console.warn('Resources snapshot error', err));
+}
+
 async function hashPassword(password) {
   const enc = new TextEncoder();
   const data = enc.encode(password);
@@ -204,20 +243,12 @@ function startFirestoreLoader(intervalMs = 3000) {
       const fb = await initFirebase();
       if (fb && fb.db) {
         db = fb.db;
-        const fromFirestore = await loadFromFirestore(db);
-        if (fromFirestore !== null) {
-          const [announcements, resources] = fromFirestore;
-          firebaseReady = true;
-          // render when available
-          renderAnnouncements(announcements);
-          renderResources(resources);
-          setupSearch(announcements, resources);
-          console.info('Firestore data loaded');
-          clearInterval(_firestoreLoaderTimer);
-          _firestoreLoaderTimer = null;
-        } else {
-          console.warn('Firestore reachable but read failed; will retry');
-        }
+        // attach realtime listeners; onSnapshot will render the first snapshot
+        startRealtimeListeners(db);
+        firebaseReady = true;
+        console.info('Realtime Firestore listeners attached');
+        clearInterval(_firestoreLoaderTimer);
+        _firestoreLoaderTimer = null;
       }
     } catch (err) {
       console.debug('Firestore attempt failed, will retry', err);
