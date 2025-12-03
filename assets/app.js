@@ -22,6 +22,72 @@ let currentAdminUID = null;
 let firebaseReady = false;
 let currentAnnouncements = [];
 let currentResources = [];
+let restMode = false; // true when using REST fallback instead of SDK
+
+function _extractFieldValue(field) {
+  if (!field) return null;
+  if (field.stringValue !== undefined) return field.stringValue;
+  if (field.timestampValue !== undefined) return field.timestampValue;
+  if (field.booleanValue !== undefined) return field.booleanValue;
+  if (field.integerValue !== undefined) return Number(field.integerValue);
+  if (field.doubleValue !== undefined) return Number(field.doubleValue);
+  if (field.arrayValue && field.arrayValue.values) return field.arrayValue.values.map(v => _extractFieldValue(v));
+  return null;
+}
+
+async function fetchViaRestCollections() {
+  // Requires firebaseConfig.projectId and apiKey to be present
+  try {
+    if (!firebaseConfig || !firebaseConfig.projectId || !firebaseConfig.apiKey) {
+      console.debug('REST fallback unavailable: missing firebaseConfig.projectId or apiKey');
+      return null;
+    }
+    const base = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(firebaseConfig.projectId)}/databases/(default)/documents`;
+    const key = encodeURIComponent(firebaseConfig.apiKey);
+    const [annRes, resRes] = await Promise.all([
+      fetch(`${base}/announcements?key=${key}`),
+      fetch(`${base}/resources?key=${key}`)
+    ]);
+    if (!annRes.ok || !resRes.ok) {
+      console.warn('Firestore REST fetch failed', annRes.status, resRes.status);
+      return null;
+    }
+    const [annJson, resJson] = await Promise.all([annRes.json(), resRes.json()]);
+
+    const announcements = (annJson.documents || []).map(d => {
+      const f = d.fields || {};
+      return {
+        id: d.name || null,
+        title: _extractFieldValue(f.title) || '',
+        date: _extractFieldValue(f.date) || null,
+        body: _extractFieldValue(f.body) || '',
+        pinned: !!_extractFieldValue(f.pinned)
+      };
+    });
+
+    const resources = (resJson.documents || []).map(d => {
+      const f = d.fields || {};
+      return {
+        id: d.name || null,
+        title: _extractFieldValue(f.title) || '',
+        type: _extractFieldValue(f.type) || '',
+        link: _extractFieldValue(f.link) || '',
+        description: _extractFieldValue(f.description) || ''
+      };
+    });
+
+    // sort announcements same way
+    announcements.sort((a,b) => {
+      if ((b.pinned?1:0) - (a.pinned?1:0) !== 0) return (b.pinned?1:0) - (a.pinned?1:0);
+      return new Date(b.date) - new Date(a.date);
+    });
+
+    return [announcements, resources];
+  } catch (err) {
+    console.warn('Firestore REST fetch error', err);
+    return null;
+  }
+}
 
 async function loadJSON(path) {
   try {
@@ -131,7 +197,24 @@ async function loadFromFirestore(dbInstance) {
 
 async function fetchAndRenderData(dbInstance) {
   try {
-    const fromFirestore = await loadFromFirestore(dbInstance);
+    // prefer SDK-based load when available
+    let fromFirestore = null;
+    if (dbInstance) {
+      fromFirestore = await loadFromFirestore(dbInstance);
+      if (fromFirestore !== null) {
+        restMode = false;
+      }
+    }
+
+    // if SDK failed or not available, try REST fallback
+    if (fromFirestore === null) {
+      const rest = await fetchViaRestCollections();
+      if (rest !== null) {
+        fromFirestore = rest;
+        restMode = true;
+      }
+    }
+
     if (fromFirestore !== null) {
       const [announcements, resources] = fromFirestore;
       currentAnnouncements = announcements;
@@ -139,7 +222,7 @@ async function fetchAndRenderData(dbInstance) {
       renderAnnouncements(currentAnnouncements);
       renderResources(currentResources);
       setupSearch(currentAnnouncements, currentResources);
-      console.info('Data fetched from Firestore', announcements.length, 'announcements,', resources.length, 'resources');
+      console.info('Data fetched', restMode ? 'via REST' : 'via SDK', announcements.length, 'announcements,', resources.length, 'resources');
     }
   } catch (err) {
     console.warn('Failed to fetch data from Firestore:', err);
