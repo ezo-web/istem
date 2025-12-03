@@ -238,7 +238,12 @@ function setupAdminUI() {
   const createAnnouncementForm = document.getElementById('createAnnouncementForm');
   const createResourceForm = document.getElementById('createResourceForm');
 
-  adminBtn?.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); toggleAdminPanel(true); });
+  if (!adminBtn) {
+    console.warn('Admin button not found in DOM');
+    return;
+  }
+
+  adminBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); toggleAdminPanel(true); });
   
   if (closeAdmin) {
     closeAdmin.addEventListener('click', (e) => { 

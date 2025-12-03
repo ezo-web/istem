@@ -64,12 +64,31 @@ Security note
 
 Testing locally
 
-Start a simple static server and open the site. If Firestore config is present and valid, the site will show live Firestore data; otherwise it will show the sample data from `data/`.
+Start a simple static server and open the site:
 
 ```bash
 python3 -m http.server 8000
 # open http://localhost:8000
 ```
+
+Deployment (GitHub Pages)
+---------------------------------
+
+This site is designed to work with GitHub Pages. The code includes a script in `index.html` that auto-detects when deployed to `https://ezo-web.github.io/istem/` and sets the correct base path for all relative asset and data URLs.
+
+If you deployed this to GitHub Pages and the admin button doesn't work:
+- Check the browser console for errors (DevTools → Console tab).
+- Verify that the site is served from the correct URL (e.g., `https://ezo-web.github.io/istem/`).
+- If the URL is different, update the hostname check in `index.html` line 10 and set the correct base path.
+
+For other GitHub Pages URLs (e.g., `myusername.github.io/myrepo/`):
+- Open `index.html` and update line 10 to check for your hostname:
+  ```javascript
+  if (window.location.hostname === 'myusername.github.io' && !document.querySelector('base')) {
+    const base = document.createElement('base');
+    base.href = '/myrepo/';  // Replace with your repo name
+  ```
+
 
 Want me to:
 - Add an admin UI to create/edit announcements directly from the site (with Firebase Authentication)
@@ -94,23 +113,7 @@ Creating admin accounts
 Security notes & recommendations
 - Admin credentials are stored locally in `data/admins.json` and never sent to Firestore. Do not commit this file to a public repository or add it to `.gitignore` if you have sensitive credentials.
 - Plaintext passwords in `data/admins.json` are hashed client-side (SHA-256) when the page loads. Hashes are compared in the browser; passwords are never sent to the server.
-- Firestore only stores the public announcements and resources, and should use these rules to allow anyone to read but only authenticated users (via local session) to write:
-  ```
-  rules_version = '2';
-  service cloud.firestore {
-    match /databases/{database}/documents {
-      match /announcements/{document=**} {
-        allow read: if true;
-        allow write: if false;
-      }
-      match /resources/{document=**} {
-        allow read: if true;
-        allow write: if false;
-      }
-    }
-  }
-  ```
-- If you want server-controlled write permissions, you would need a backend API that validates admin status; for now, the site does not perform server-side checks.
+- See [`FIRESTORE_RULES.md`](./FIRESTORE_RULES.md) for Firestore security rules and recommendations for handling admin writes securely.
 
 
 
