@@ -227,12 +227,12 @@ function startFirestoreLoader(intervalMs = 5 * 60 * 1000, inactivityThreshold = 
   // don't start multiple loaders
   if (_firestoreLoaderTimer) return;
 
-  const attempt = async () => {
-    // only fetch if user has interacted in last 10 minutes
+  const attemptOnce = async (forced = false) => {
+    // if not forced, only fetch if user has interacted in last inactivityThreshold
     const timeSinceInteraction = Date.now() - _lastUserInteraction;
-    if (timeSinceInteraction > inactivityThreshold) {
+    if (!forced && timeSinceInteraction > inactivityThreshold) {
       console.debug('Skipping Firestore fetch: user inactive for', Math.round(timeSinceInteraction / 1000), 'seconds');
-      return;
+      return false;
     }
 
     try {
@@ -243,17 +243,45 @@ function startFirestoreLoader(intervalMs = 5 * 60 * 1000, inactivityThreshold = 
         await fetchAndRenderData(db);
         firebaseReady = true;
         console.info('Firestore initialized and data fetched');
-        clearInterval(_firestoreLoaderTimer);
-        _firestoreLoaderTimer = null;
+        return true;
       }
     } catch (err) {
-      console.debug('Firestore attempt failed, will retry', err);
+      console.debug('Firestore attempt failed', err);
     }
+    return false;
   };
 
-  // run immediately, then every 5 minutes
-  attempt();
-  _firestoreLoaderTimer = setInterval(attempt, intervalMs);
+  // run one immediate forced attempt so opening the site triggers load
+  attemptOnce(true).then(success => {
+    if (success) {
+      // set up periodic refresher that respects inactivity
+      _firestoreLoaderTimer = setInterval(async () => {
+        const timeSinceInteraction = Date.now() - _lastUserInteraction;
+        if (timeSinceInteraction <= inactivityThreshold) {
+          await fetchAndRenderData(db);
+        } else {
+          console.debug('Skipping scheduled refresh due to inactivity');
+        }
+      }, intervalMs);
+    } else {
+      // if immediate attempt failed, start retry loop that will try every interval
+      _firestoreLoaderTimer = setInterval(async () => {
+        const ok = await attemptOnce(false);
+        if (ok) {
+          // on success, clear this retry timer and start the periodic refresher
+          clearInterval(_firestoreLoaderTimer);
+          _firestoreLoaderTimer = setInterval(async () => {
+            const timeSinceInteraction = Date.now() - _lastUserInteraction;
+            if (timeSinceInteraction <= inactivityThreshold) {
+              await fetchAndRenderData(db);
+            } else {
+              console.debug('Skipping scheduled refresh due to inactivity');
+            }
+          }, intervalMs);
+        }
+      }, intervalMs);
+    }
+  });
 }
 
 async function refreshData() {
