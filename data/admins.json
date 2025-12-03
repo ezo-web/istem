@@ -1,10 +1,14 @@
 [
   {
-    "uid": "alice",
-    "password": "changeme"
+    "uid": "EK11",
+    "password": "ezopass"
   },
   {
-    "uid": "bob",
-    "password": "secret123"
+    "uid": "CW48",
+    "password": "science1"
+  },
+  {
+    "uid": "RR21",
+    "password": "science2"
   }
 ]
