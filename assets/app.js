@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
       reloadBtn.textContent = 'Reloading...';
       await fetchAndRenderData(db);
       reloadBtn.disabled = false;
-      reloadBtn.textContent = 'Reload Data';
+      reloadBtn.textContent = 'Reload';
     });
   }
 });
