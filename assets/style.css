@@ -59,7 +59,7 @@ body{
 .admin-form{display:flex;flex-direction:column;gap:8px}
 .admin-form input,.admin-form textarea{padding:8px;border-radius:8px;border:1px solid rgba(15,23,42,0.06)}
 .admin-actions{display:flex;gap:8px;align-items:center;margin-top:6px}
-.btn{background:var(rgb(0, 0, 0));color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
+.btn{background:var(rgb(255, 255, 255));color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
 .btn.alt{background:#f3f4f6;color:var(--muted);border:1px solid rgba(15,23,42,0.04)}
 /* Light style for the reload button */
 #reloadDataBtn{background:transparent;border:1px solid rgba(15,23,42,0.06);color:var(--accent);padding:8px 12px;border-radius:8px;font-weight:600;cursor:pointer}
