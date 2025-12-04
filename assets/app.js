@@ -1,3 +1,16 @@
+// Add event listener for reload button
+document.addEventListener('DOMContentLoaded', () => {
+  const reloadBtn = document.getElementById('reloadDataBtn');
+  if (reloadBtn) {
+    reloadBtn.addEventListener('click', async () => {
+      reloadBtn.disabled = true;
+      reloadBtn.textContent = 'Reloading...';
+      await fetchAndRenderData(db);
+      reloadBtn.disabled = false;
+      reloadBtn.textContent = 'Reload Data';
+    });
+  }
+});
 /*
   app.js (module)
   - initializes Firebase (if configured) and loads collections
@@ -223,6 +236,24 @@ async function fetchAndRenderData(dbInstance) {
       renderResources(currentResources);
       setupSearch(currentAnnouncements, currentResources);
       console.info('Data fetched', restMode ? 'via REST' : 'via SDK', announcements.length, 'announcements,', resources.length, 'resources');
+      return;
+    }
+
+    // If Firestore (SDK) and REST fallback both failed, load local JSON files.
+    try {
+      const [annLocal, resLocal] = await Promise.all([
+        loadJSON('data/announcements.json'),
+        loadJSON('data/resources.json')
+      ]);
+      currentAnnouncements = Array.isArray(annLocal) ? annLocal : [];
+      currentResources = Array.isArray(resLocal) ? resLocal : [];
+      renderAnnouncements(currentAnnouncements);
+      renderResources(currentResources);
+      setupSearch(currentAnnouncements, currentResources);
+      console.info('Data fetched via local JSON:', currentAnnouncements.length, 'announcements,', currentResources.length, 'resources');
+      return;
+    } catch (e) {
+      console.warn('Local JSON fallback failed', e);
     }
   } catch (err) {
     console.warn('Failed to fetch data from Firestore:', err);
