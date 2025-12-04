@@ -59,7 +59,7 @@ body{
 .admin-form{display:flex;flex-direction:column;gap:8px}
 .admin-form input,.admin-form textarea{padding:8px;border-radius:8px;border:1px solid rgba(15,23,42,0.06)}
 .admin-actions{display:flex;gap:8px;align-items:center;margin-top:6px}
-.btn{background:var(--accent);color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
+.btn{background:var(rgb(0, 0, 0));color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
 .btn.alt{background:#f3f4f6;color:var(--muted);border:1px solid rgba(15,23,42,0.04)}
 .close-btn{position:absolute;right:10px;top:8px;background:transparent;border:none;font-size:24px;color:var(--muted);cursor:pointer;z-index:70;padding:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center}
 .admin-msg{margin-top:10px;color:var(--muted);font-size:13px}
