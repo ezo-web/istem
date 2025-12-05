@@ -14,8 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
 /*
   app.js (module)
   - initializes Firebase (if configured) and loads collections
-  - provides an Admin UI using Firebase Authentication where the admin logs in
-    using `UID` + `Password` (UID is mapped to an email like `UID@istem.local`)
   - falls back to local JSON in `data/` when Firestore is not available
 */
 
@@ -35,7 +33,7 @@ let currentAdminUID = null;
 let firebaseReady = false;
 let currentAnnouncements = [];
 let currentResources = [];
-let restMode = false; // true when using REST fallback instead of SDK
+let restMode = true; // true when using REST fallback instead of SDK
 
 function _extractFieldValue(field) {
   if (!field) return null;
@@ -130,6 +128,7 @@ function renderAnnouncements(items) {
     frag.appendChild(node);
   });
   list.appendChild(frag);
+  console.log("anncRen")
 }
 
 function renderResources(items) {
