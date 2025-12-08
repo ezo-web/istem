@@ -69,3 +69,48 @@ body{
 .close-btn{position:absolute;right:10px;top:8px;background:transparent;border:none;font-size:24px;color:var(--muted);cursor:pointer;z-index:70;padding:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center}
 .admin-msg{margin-top:10px;color:var(--muted);font-size:13px}
 #adminSignedIn p{margin:0;padding:8px;background:#ecfdf5;border-radius:8px;color:#059669;border:1px solid #d1fae5}
+
+/* Deployment Banner */
+.deployment-banner{
+  background: linear-gradient(135deg, #fef3c7 0%, #fef08a 100%);
+  border-bottom: 2px solid #fcd34d;
+  padding: 14px 20px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.banner-content{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.deployment-banner p{
+  margin: 0;
+  color: #92400e;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.banner-close-btn{
+  background: transparent;
+  border: none;
+  color: #92400e;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.banner-close-btn:hover{
+  opacity: 0.7;
+}
+

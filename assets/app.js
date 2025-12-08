@@ -25,15 +25,69 @@ import {
   getDocs,
   addDoc
 } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
+import {
+  getRemoteConfig,
+  fetchAndActivate,
+  getBoolean
+} from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-remote-config.js';
 
 let firebaseApp = null;
 let db = null;
+let remoteConfig = null;
 let isAdminSignedIn = false;
 let currentAdminUID = null;
 let firebaseReady = false;
 let currentAnnouncements = [];
 let currentResources = [];
 let restMode = true; // true when using REST fallback instead of SDK
+
+async function initRemoteConfig() {
+  try {
+    if (!firebaseApp) return null;
+    remoteConfig = getRemoteConfig(firebaseApp);
+    remoteConfig.settings.minimumFetchIntervalMillis = 3600000; // 1 hour
+    await fetchAndActivate(remoteConfig);
+    console.info('Remote Config initialized');
+    return remoteConfig;
+  } catch (err) {
+    console.debug('Remote Config init failed:', err);
+    return null;
+  }
+}
+
+function showDeploymentBanner() {
+  if (!remoteConfig) return;
+  try {
+    const isDeploying = getBoolean(remoteConfig, 'deploying_changes');
+    const banner = document.getElementById('deploymentBanner');
+    if (!banner) return;
+
+    if (isDeploying) {
+      banner.hidden = false;
+      banner.style.display = 'block';
+    } else {
+      banner.hidden = true;
+      banner.style.display = 'none';
+    }
+  } catch (err) {
+    console.debug('Failed to check deployment status:', err);
+  }
+}
+
+function setupBannerDismiss() {
+  const banner = document.getElementById('deploymentBanner');
+  const closeBtn = document.getElementById('closeBannerBtn');
+  if (!closeBtn) return;
+  
+  closeBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (banner) {
+      banner.hidden = true;
+      banner.style.display = 'none';
+    }
+  });
+}
 
 function _extractFieldValue(field) {
   if (!field) return null;
@@ -168,6 +222,8 @@ async function initFirebase() {
     }
     firebaseApp = initializeApp(firebaseConfig);
     db = getFirestore(firebaseApp);
+    // also initialize Remote Config
+    await initRemoteConfig();
     return { app: firebaseApp, db, auth };
   } catch (err) {
     console.warn('Firebase not initialized:', err.message || err);
@@ -320,6 +376,7 @@ async function init() {
   setupSearch([], []);
 
   setupAdminUI();
+  setupBannerDismiss();
 
   // Track user opening the site as an interaction so first fetch happens
   trackUserInteraction();
@@ -355,6 +412,8 @@ function startFirestoreLoader(intervalMs = 5 * 60 * 1000, inactivityThreshold = 
         // fetch and render data once
         await fetchAndRenderData(db);
         firebaseReady = true;
+        // check and show deployment banner if needed
+        showDeploymentBanner();
         console.info('Firestore initialized and data fetched');
         return true;
       }
