@@ -9,3 +9,5 @@ A security vulnrability is something that meets this critera:
     * Services the website uses
     * Github configurations/settings
     * Any other service that communicate with the website
+  
+3. The issue compromises website/system security in any way not already listed
